@@ -3,17 +3,18 @@
  */
 var statusRef;
 var logRef;
-var speedGraph;
-var powerGraph;
-var temperatureGraph;
+var socGraph;
+var votlageGraph;
 var graphDrawn;
-var dataRef;
-var timer;
-var speedValues = [];
-var powerValues = [];
-var tempValues = [];
-var dateTime = [];
-var timerOn;
+var socCell1Values = [];
+var socCell2Values = [];
+var socCell7Values = [];
+var socCell8Values = [];
+var voltCell1Values = [];
+var voltCell2Values = [];
+var voltCell7Values = [];
+var voltCell8Values = [];
+var timeElapsed = [];
 
 (function () {
 
@@ -56,49 +57,174 @@ function subscribeToLogForKey(key) {
     console.log("Getting information for the log: " + key);
     const reference = firebase.database().ref("logs/" + key);
 
-    //I suspect that we will use the method below to initiate the graph.
-    drawGraphs();
 
     //Subscribe to the database reference.
     reference.on("child_added", function (data) {
-
-        //This method will be called for each log entry added.
-        updateGraphs(data.val());
+        if(graphDrawn) {
+            //This method will be called for each log entry added.
+            updateGraphs(data.val());
+        }else {
+            drawGraphs(data.val());
+        }
     })
 }
 
+function drawVoltageGraph() {
 
-function drawSpeedGraph(speedValues, dateTime) {
-
-    var ctx = document.getElementById("speedChart");
-    speedGraph = new Chart(ctx, {
+    var ctx = document.getElementById("voltageChart");
+    voltageGraph = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: dateTime,
+            labels: timeElapsed,
             datasets: [{
-                data: speedValues,
-                backgroundColor: 'rgba(0,172,172,0.3)',
-                borderColor: '#00acac',
-                borderWidth: 5
-            }]
+                label: "Cell 1",
+                fill: false,
+                data: voltCell1Values,
+                borderColor: '#3a9ad9',
+                borderWidth: 2,
+                pointRadius: 0
+            },
+                {
+                    label: "Cell 2",
+                    fill: false,
+                    data: voltCell2Values,
+                    borderColor: '#29aba4',
+                    borderWidth: 2,
+                    pointRadius: 0
+                },
+                {
+                    label: "Cell 3",
+                    fill: false,
+                    data: voltCell7Values,
+                    borderColor: '#354458',
+                    borderWidth: 2,
+                    pointRadius: 0
+                },
+                {
+                    label: "Cell 4",
+                    fill: false,
+                    data: voltCell8Values,
+                    borderColor: '#eb7260',
+                    borderWidth: 2,
+                    pointRadius: 0
+                }]
         },
         options: {
             scales: {
                 yAxes: [{
                     ticks: {
-                        beginAtZero: true
+                        beginAtZero: false,
+                    }
+
+                }],
+                xAxes: [{
+                    ticks: {
+                        display: false
+
+                    },
+                    gridLines: {
+                        display: false
                     }
                 }]
             },
+            elements: {
+                line: {
+                    tension: 0// disables bezier curves
+                }
+            },
             legend: {
-                display: false
+                display: true
             },
             tooltips: {
                 enabled: true,
                 mode: 'single',
                 callbacks: {
                     label: function (tooltipItems, data) {
-                        return tooltipItems.yLabel + ' RPM';
+                        return tooltipItems.yLabel + 'V';
+                    }
+                }
+            }
+        }
+
+
+    });
+}
+
+function drawSocGraph() {
+
+    var ctx = document.getElementById("socChart");
+    socGraph = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: timeElapsed,
+            datasets: [{
+                label: "Cell 1",
+                fill: false,
+                data: socCell1Values,
+                borderColor: '#3a9ad9',
+                borderWidth: 2,
+                pointRadius: 0
+            },
+            {
+                label: "Cell 2",
+                fill: false,
+                data: socCell2Values,
+                borderColor: '#29aba4',
+                borderWidth: 2,
+                pointRadius: 0
+            },
+            {
+                label: "Cell 3",
+                fill: false,
+                data: socCell7Values,
+                borderColor: '#354458',
+                borderWidth: 2,
+                pointRadius: 0
+            },
+            {
+                label: "Cell 4",
+                fill: false,
+                data: socCell8Values,
+                borderColor: '#eb7260',
+                borderWidth: 2,
+                pointRadius: 0
+            }]
+        },
+        options: {
+            scales: {
+                yAxes: [{
+                    ticks: {
+                        beginAtZero: true,
+                        min: 0,
+                        max: 100
+                    }
+
+                }],
+                xAxes: [{
+                    ticks: {
+                        min: 0,
+                        max: 4000,
+                        display: false
+                    },
+                    gridLines: {
+                        display: false
+                    }
+                }]
+            },
+            elements: {
+                line: {
+                    tension: 0// disables bezier curves
+                }
+            },
+            legend: {
+                display: true
+            },
+            tooltips: {
+                enabled: true,
+                mode: 'single',
+                callbacks: {
+                    label: function (tooltipItems, data) {
+                        return tooltipItems.yLabel + ' %';
                     }
                 }
             }
@@ -122,15 +248,48 @@ function updateStats(statusData) {
         + '<p> Time Elapsed: ' + statusData['time_elapsed'] + '</p>');
 }
 
-function drawGraphs() {
+function drawGraphs(data) {
 
-    console.log("Drawing the graphs");
+    socCell1Values.push(data['cell1_soc']);
+    socCell2Values.push(data['cell2_soc']);
+    socCell7Values.push(data['cell7_soc']);
+    socCell8Values.push(data['cell8_soc']);
+    voltCell1Values.push(data['cell1_voltage']);
+    voltCell2Values.push(data['cell2_voltage']);
+    voltCell7Values.push(data['cell7_voltage']);
+    voltCell8Values.push(data['cell8_voltage']);
+
+    timeElapsed.push(data['time_elapsed']);
+
+    drawSocGraph();
+    drawVoltageGraph();
+    graphDrawn = true;
+
 }
 
 function updateGraphs(data) {
 
-    console.log("Adding new element to the graph");
-    console.log(data)
+    socGraph.data.labels.push(data['time_elapsed']);
+
+    socGraph.data.datasets[0].data.push(data['cell1_soc']);
+
+    socGraph.data.datasets[1].data.push(data['cell2_soc']);
+
+    socGraph.data.datasets[2].data.push(data['cell7_soc']);
+
+    socGraph.data.datasets[3].data.push(data['cell8_soc']);
+
+    socGraph.update();
+
+    voltageGraph.data.datasets[0].data.push(data['cell1_voltage']);
+
+    voltageGraph.data.datasets[1].data.push(data['cell2_voltage']);
+
+    voltageGraph.data.datasets[2].data.push(data['cell7_voltage']);
+
+    voltageGraph.data.datasets[3].data.push(data['cell8_voltage']);
+
+    voltageGraph.update();
 }
 
 

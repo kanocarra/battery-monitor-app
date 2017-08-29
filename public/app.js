@@ -15,7 +15,7 @@ var tempValues = [];
 var dateTime = [];
 var timerOn;
 
-(function() {
+(function () {
 
     // Initialize Firebase
     var config = {
@@ -29,35 +29,46 @@ var timerOn;
     };
     firebase.initializeApp(config);
 
-            const database = firebase.database().ref();
+    const database = firebase.database().ref();
 
-            //Create refgit erence to Battery-Monitor status
-            statusRef = database.child('status');
+    //Create reference to Battery-Monitor status
+    statusRef = database.child('status');
 
-            statusRef.on('value', function(snap) {
-                updateStats(snap.val())
-                });
+    statusRef.on('value', function (snap) {
+        updateStats(snap.val())
+    });
 
-            logRef = database.child('logs');
-            graphDrawn = false;
-
-            logRef.limitToLast(1).on('value', function(snap) {
-                setUpReference(snap);
-                //if (graphDrawn) {
-                //    updateGraphs(snap.val());
-                //} else {
-                //    drawGraphs(snap.val());
-                //}
-            });
+    //Get the last element under the "logs" section. Please note the code below is only executed once.
+    database.child('logs').limitToLast(1).once('value', function (snap) {
+        //Get the key of the log.
+        // The code below is a bit weird because we are using a `forEach` method when there is
+        // only one element. But I couldn't find another way to get the key.
+        snap.forEach(function(logSnapshot) {
+            //Once we got the key, we pass it to the `subscribeToLogForKey` method.
+            subscribeToLogForKey(logSnapshot.key);
+        });
+    });
 
 
 }());
 
+function subscribeToLogForKey(key) {
+    console.log("Getting information for the log: " + key);
+    const reference = firebase.database().ref("logs/" + key);
+
+    //I suspect that we will use the method below to initiate the graph.
+    drawGraphs();
+
+    //Subscribe to the database reference.
+    reference.on("child_added", function (data) {
+
+        //This method will be called for each log entry added.
+        updateGraphs(data.val());
+    })
+}
 
 
-
-
-function drawSpeedGraph(speedValues, dateTime){
+function drawSpeedGraph(speedValues, dateTime) {
 
     var ctx = document.getElementById("speedChart");
     speedGraph = new Chart(ctx, {
@@ -86,7 +97,7 @@ function drawSpeedGraph(speedValues, dateTime){
                 enabled: true,
                 mode: 'single',
                 callbacks: {
-                    label: function(tooltipItems, data) {
+                    label: function (tooltipItems, data) {
                         return tooltipItems.yLabel + ' RPM';
                     }
                 }
@@ -97,7 +108,7 @@ function drawSpeedGraph(speedValues, dateTime){
     });
 }
 
-function updateStats(statusData){
+function updateStats(statusData) {
     $('.battery-fill-cell1').html('<p style="color: ghostwhite; font-size: 18px">' + statusData['cell1_soc'] + '%</br>' +
         statusData['cell1_voltage'] + 'V </p>');
     $('.battery-fill-cell2').html('<p style="color: ghostwhite; font-size: 18px">' + statusData['cell2_soc'] + '%</br>' +
@@ -107,39 +118,23 @@ function updateStats(statusData){
     $('.battery-fill-cell8').html('<p style="color: ghostwhite; font-size: 18px">' + statusData['cell8_soc'] + '%</br>' +
         statusData['cell8_voltage'] + 'V </p>');
     $('#main_status').html('<p> Current: ' + statusData['current'] + '</p>'
-                            + '<p> Pack Voltage: ' + statusData['pack_voltage'] + '</p>'
-                            + '<p> Time Elapsed: ' + statusData['time_elapsed'] + '</p>');
+        + '<p> Pack Voltage: ' + statusData['pack_voltage'] + '</p>'
+        + '<p> Time Elapsed: ' + statusData['time_elapsed'] + '</p>');
 }
 
-function drawGraphs(data) {
+function drawGraphs() {
 
-    console.log(data);
+    console.log("Drawing the graphs");
 }
 
 function updateGraphs(data) {
 
-    console.log(data);
-    console.log("update");
-}
-
-function setUpReference(log){
-    console.log(log.key);
-
-    logRef.on('child_added', function(snap) {
-        setUpReference(log.key);
-        //if (graphDrawn) {
-        //    updateGraphs(snap.val());
-        //} else {
-        //    drawGraphs(snap.val());
-        //}
-    });
-
+    console.log("Adding new element to the graph");
+    console.log(data)
 }
 
 
-
-
-$( document ).ready( function() {
+$(document).ready(function () {
 
 
 });
